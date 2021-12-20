@@ -133,7 +133,7 @@ const masterLength = master.length;
 console.log('master size', master.byteLength / 1000000000);
 
 // let polymer = Uint8Array.from([...polymerTemplate].map(toEl));
-const initPolymer = [...polymerTemplate].map(toEl);
+const initPolymer = [...polymerTemplate]; //.map(toEl);
 // let polymer = master.subarray(0, initPolymer.length);
 // polymer.set(initPolymer);
 
@@ -162,7 +162,7 @@ function countEl(el, elCountMap) {
 // countEl(initPolymer[0]);
 
 const STEPS = 40;
-const STEP_GROUPS = 4;
+const STEP_GROUPS = 2;
 const STEPS_PER_GROUP = STEPS / STEP_GROUPS;
 
 const groupCache = {};
@@ -189,19 +189,19 @@ function processPair(pair, step, group) {
 }
 
 function getGroup(pair) {
-    const pairId = pair.join('-');
-    if (groupCache[pairId]) return groupCache[pairId];
+    if (!groupCache[pair[0]]) groupCache[pair[0]] = {};
+    if (groupCache[pair[0]][pair[1]]) return groupCache[pair[0]][pair[1]];
     
     const group = {
-        pair,
-        pairId,
+        // pair,
+        // pairId,
         elCountMap: {
             // [pair[0]]: 1
         },
         nextGroups: []
     };
     
-    groupCache[pairId] = group;
+    groupCache[pair[0]][pair[1]] = group;
     
     processPair(pair, 0, group);
     
