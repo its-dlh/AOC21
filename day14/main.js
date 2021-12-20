@@ -119,6 +119,7 @@ for (let i = 0; i < elements.length; i++) {
 
 
 const toEl = el => {
+    return el;
     if (typeof elementIds[el] == 'undefined') {
         elementIds[el] = elementSet.size;
         elementSet.add(el);
@@ -150,42 +151,100 @@ const cat = strings => strings.join('');
 
 console.time('polymer');
 
-let elCountMap = {};
+// let elCountMap = {};
 
-function countEl(el) {
+function countEl(el, elCountMap) {
     let elCount = elCountMap[el] ?? 0;
     elCount++;
     elCountMap[el] = elCount;
 };
 
-countEl(initPolymer[0]);
+// countEl(initPolymer[0]);
 
-const STEPS = 20;
+const STEPS = 40;
+const STEP_GROUPS = 4;
+const STEPS_PER_GROUP = STEPS / STEP_GROUPS;
 
-function processPair(pair, step) {
-    if (step == STEPS) {
+const groupCache = {};
+
+function processPair(pair, step, group) {
+    if (step == STEPS_PER_GROUP) {
         // countEl(pair[0]);
-        countEl(pair[1]);
+        countEl(pair[1], group.elCountMap);
+        group.nextGroups.push( getGroup(pair) );
         return;
     }
     
     const insertion = rules[ pair[0] ]?.[ pair[1] ];
     
-    const start = step * 3;
-    master[start] = pair[0];
-    if (typeof insertion == 'number') {
-        master[start+1] = insertion;
-        master[start+2] = pair[1];
-        processPair(master.subarray(start, start+2), step + 1);
-        processPair(master.subarray(start+1, start+3), step + 1);
-    } else {
-        master[start+1] = pair[1];
-        processPair(master.subarray(start, start+2), step + 1);
-    }
+    // if (typeof insertion == 'number') {
+        // master[start+1] = insertion;
+        // master[start+2] = pair[1];
+        processPair([pair[0], insertion], step + 1, group);
+        processPair([insertion, pair[1]], step + 1, group);
+    // } else {
+    //     master[start+1] = pair[1];
+    //     processPair(master.subarray(start, start+2), step + 1, group);
+    // }
 }
 
+function getGroup(pair) {
+    const pairId = pair.join('-');
+    if (groupCache[pairId]) return groupCache[pairId];
+    
+    const group = {
+        pair,
+        pairId,
+        elCountMap: {
+            // [pair[0]]: 1
+        },
+        nextGroups: []
+    };
+    
+    groupCache[pairId] = group;
+    
+    processPair(pair, 0, group);
+    
+    return group;
+}
+
+function getGroupCounts(group, step) {
+    if (step > STEPS) {
+        console.error('step overflow!');
+        process.exit();
+    }
+    
+    if (step == STEPS) {
+        return group.elCountMap
+    }
+    
+    // let min = 0;
+    // let max = 0;
+    
+    const elCountMap = {};
+    
+    group.nextGroups.forEach(group => {
+        const gElCountMap = getGroupCounts(group, step + STEPS_PER_GROUP);
+        for (const el in gElCountMap) {
+            const oldCount = elCountMap[el] ?? 0;
+            elCountMap[el] = oldCount + gElCountMap[el];
+        }
+    });
+    
+    return elCountMap;
+}
+
+const elCountMap = {
+    [initPolymer[0]]: 1
+};
+
 for (let i = 0; i < initPolymer.length - 1; i++) {
-    processPair([initPolymer[i], initPolymer[i+1]], 0);
+    const group = getGroup([initPolymer[i], initPolymer[i+1]]);
+    const gElCountMap = getGroupCounts(group, STEPS_PER_GROUP);
+    for (const el in gElCountMap) {
+        const oldCount = elCountMap[el] ?? 0;
+        elCountMap[el] = oldCount + gElCountMap[el];
+    }
 }
 
 console.timeEnd('polymer');
@@ -200,11 +259,11 @@ console.timeEnd('polymer');
 
 // console.timeEnd('reduce');
 
-console.time('count');
-// const sortedElements = Object.entries(elements).sort(([,a], [,b]) => b - a);
+// console.time('count');
+// // const sortedElements = Object.entries(elements).sort(([,a], [,b]) => b - a);
 const elementCounts = Object.values(elCountMap).sort((a, b) => b - a);
 const difference = elementCounts[0] - elementCounts.at(-1);
-console.timeEnd('count');
+// console.timeEnd('count');
 console.log(elCountMap);
 
 console.log(STEPS, 'steps');

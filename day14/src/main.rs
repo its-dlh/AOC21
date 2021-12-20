@@ -102,7 +102,7 @@ KB -> O
 KF -> O";
 
 const CHUNK_SIZE: usize = 99999999;
-const STEPS: u8 = 30;
+const STEPS: u8 = 21;
 
 use std::collections::HashMap;
 use std::cmp;
